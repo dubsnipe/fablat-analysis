@@ -94,7 +94,7 @@ def main(argv):
       scope= 'https://www.googleapis.com/auth/drive')
 
   try:
-    # folderFileId = '0B_UC-7ShbgndTzlvaS1DOWVhRnM' #flf
+    folderFileId = '0B_UC-7ShbgndTzlvaS1DOWVhRnM' #flf
     # folderFileId = '0B0V-zM54DsKKSnhOTHk1RDZEX1U' #kids
     # folderFileId = '0B6E2Atn07k-5c0w4c0xNbURuaG8' #pabellon
 
