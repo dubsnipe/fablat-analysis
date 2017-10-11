@@ -1,0 +1,156 @@
+---
+title: "Analysis of FABLAT project timelines"
+author:
+- Emilio Velis, Fab Lab El Salvador (contacto@emiliovelis.com) San Salvador, El Salvador
+date: "July 23, 2017"
+abstract: "An example code is shown for analyzing a dataset mined from Google Drive data showing the file edit history from contributors."
+tags: Fab Lab, sharing economies, data analysis
+
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning=FALSE, message=FALSE}
+require(ggplot2)
+require(ggthemes)
+require(dplyr)
+require(tidyr)
+require(lubridate)
+require(stats)
+```
+
+## Opening and consolidating dataset
+```{r, warning=FALSE}
+filename <- "flf.txt"
+
+folder <- unlist(strsplit(filename,c("/|\\.")))[1]
+project <- unlist(strsplit(filename,c("/|\\.")))[2]
+
+filename_err <- paste0(folder,"/",project,"_err.txt")
+
+## Some file names contain commas which mess up the read.csv function. Here we open as text lines separated by semicolons, turn the commas into dashes, set commas and save as a csv file. This extra step guarantees that all files may be read.
+
+data_lines <- (unlist(lapply(readLines(filename),function(x)gsub("\r\n^;|\r\n^,",";",x))))
+data_lines <- (unlist(lapply(readLines(filename),function(x)gsub(",","-",x))))
+csv_lines <- (unlist(lapply(data_lines,function(x)gsub(";",",",x))))
+
+data_lines_err <- (unlist(lapply(readLines(filename_err),function(x)gsub("\r\n;|^\r\n,",";",x))))
+data_lines_err <- (unlist(lapply(readLines(filename_err),function(x)gsub(",","-",x))))
+csv_lines_err <- c("fileId,fileName,mimeType,createdTime,ownerName,modifiedTime,lastModName",(unlist(lapply(data_lines_err,function(x)gsub(";",",",x)))))
+
+## Writing as csv
+write(csv_lines,paste0(folder,"/",project,".csv"))
+write(csv_lines_err,paste0(folder,"/",project,"_err.csv"))
+
+## Re-reading as csv
+edits <- tbl_df(read.csv(paste0(folder,"/",project,".csv"),  fill = TRUE, stringsAsFactors = FALSE, fileEncoding = "UTF-8"))
+edits <- edits %>% mutate(ownerName=ifelse(ownerName=="",NA,ownerName),lastModName=ifelse(lastModName=="",NA,ownerName))
+
+noedits <- tbl_df(read.csv(paste0(folder,"/",project,"_err.csv"),  fill = TRUE, stringsAsFactors = FALSE, fileEncoding = "UTF-8"))
+noedits <- noedits %>% mutate(ownerName=ifelse(ownerName=="",NA,ownerName))
+
+raw_data <- rbind(edits,noedits)
+raw_data <- raw_data[!is.na(as.Date(raw_data$createdTime)),]
+```
+
+
+```{r, warnings=FALSE, messages="FALSE"}
+contributors <- 
+  raw_data %>% 
+  mutate(interaction = ifelse(is.na(modifiedTime),"created","modified"),
+         datetime = ifelse(is.na(modifiedTime),createdTime,modifiedTime), 
+         user = ifelse(is.na(lastModName),ownerName,lastModName)) %>% 
+  mutate(user = ifelse(is.na(user),"*NON-LOGGED",toupper(user)),
+         datetime = date(datetime)) %>% 
+  group_by(user, datetime) %>% 
+  summarize(count=n_distinct(datetime)) %>% 
+  mutate(cumsum=cumsum(count))
+
+contributor_ranking <- contributors %>% group_by(user) %>% summarize(total=sum(count)) %>% arrange(desc(total))
+  
+png(
+  paste0(filename," ",format(now(), "%Y-%m-%d %I%M%p")," [01].png"), 
+  width=20, 
+  height=15, 
+  units="cm", 
+  res=500)
+
+m<-ggplot(contributors,aes(x=datetime,y=cumsum, color=user))+geom_line(alpha=0.5)+theme_classic()+scale_x_date(date_breaks = "1 month", date_labels = "%m %Y")+guides(color="none")+theme(axis.text.x=element_text(angle = 90, hjust = 1))+guides(color="none")+labs(title=paste(project,"-","Timeline of edits by participant"), subtitle=paste("Filename:",filename),x="Date",y="Edits")
+
+m
+# i<-ggplot(data,aes(modifiedTime,edits))+geom_bar(stat="identity",fill="#000000")+theme_classic()+theme(axis.text.x = element_text(angle = 90, hjust = 1,size=8,color="#888888"),axis.text.y=element_text(size=8,color="#888888"))+labs(title="Number of Monthly Google Drive Edits", subtitle="Pabellón LAT",x="Month",y="Number of edits")
+
+# 
+# i<-ggplot(
+#   data,aes(modifiedTime,edits))+
+#   geom_point(fill="#000000")+
+#   theme_classic()+
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 8, color = "#888888"),
+#         axis.text.y = element_text(size = 8,color = "#888888"))+
+#   labs(title="Number of Monthly Google Drive Edits", 
+#        subtitle="Pabellón LAT",x="Month",y="Number of edits")+
+#   stat_smooth(method="lm", col="red")+
+#   scale_x_date(date_breaks = "1 week", date_labels = "%b %d")
+
+# format(data$modifiedTime,"%b-%g")
+
+dev.off()
+
+####################
+data <- 
+  raw_data %>% 
+  mutate(interaction = ifelse(is.na(modifiedTime),"created","modified"),
+         datetime = ifelse(is.na(modifiedTime),createdTime,modifiedTime), 
+         user = ifelse(is.na(lastModName),ownerName,lastModName)) %>% 
+  mutate(datetime = date(datetime)) %>% 
+  group_by(datetime) %>% 
+  summarize(edits=length(user), editors=n_distinct(user)) %>%
+  arrange(desc(edits))
+
+weekly <- data %>% mutate(datetime=format(data$datetime,"%Y-%m")) %>% group_by(datetime) %>% group_by(datetime) %>% summarize(week_edits=sum(edits),week_editors=sum(editors))
+
+gathered_weekly <- weekly %>% gather(key=type,value=amount,week_edits,week_editors)
+
+png(
+  paste0(filename," ",format(now(), "%Y-%m-%d %I%M%p")," [02].png"), 
+  width=20, 
+  height=15, 
+  units="cm", 
+  res=500)
+
+k <- ggplot(gathered_weekly,aes(x=datetime,y=amount,color=type))+geom_point()+geom_line(aes(group=type))+theme_classic()+theme(axis.text.x = element_text(angle = 90, hjust = 1,size=8,color="#888888"),axis.text.y=element_text(size=8,color="#888888"))+labs(title=paste(project,"-","Edits and editors over time"), subtitle=paste("Filename:",filename),x="Date",y="Amount")
+
+k
+
+dev.off()
+
+
+```
+
+This first graph shows the humber of edits and editors per month during the lifetime of the project. The graph also breaks down the number of edits per recorded days.
+
+# User engagement analysis
+```{r}
+# contributions <- 
+#   raw_data %>%
+#   mutate(lastModName=ifelse(is.na(lastModName),"*NON-LOGGED",toupper(lastModName))) %>%
+#   group_by(lastModName) %>%
+#   summarize(count=n()) %>%
+#   arrange(desc(count)) %>% 
+#   mutate(rate = count/sum(count), cumulative=cumsum(rate))
+# 
+# #Anonimizing data
+# contributions$lastModName[contributions$lastModName!="*NON-LOGGED"] <-
+#   paste("PARTICIPANT",head(sprintf('%0.2d',seq(1:length(contributions$lastModName))),-1),sep=" ")
+# 
+# contributions
+
+#########
+
+
+```
+
+
