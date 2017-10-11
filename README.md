@@ -1,8 +1,12 @@
 # FABLAT Analysis
 
-##Description
 
-This repo contains data mined by the data_crawler Python script from project Google Drive folders, and the resulting analysis by an R script, both included among the files. The mined data was obtained through two files:
+
+## Description
+
+This repo contains data mined by the data_crawler Python script from project Google Drive folders, and the resulting analysis by an R script, both included among the files. The mined data was obtained through two files, one for files that have been modified within Google Drive, and others that have been uploaded to the corresponding folders.
+
+
 
 ## Files
 

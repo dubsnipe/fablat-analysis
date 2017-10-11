@@ -1,12 +1,14 @@
 ---
 title: "Analysis of FABLAT project timelines"
-author:
-- Emilio Velis, Fab Lab El Salvador (contacto@emiliovelis.com) San Salvador, El Salvador
+author: Emilio Velis, Fab Lab El Salvador (contacto@emiliovelis.com) San Salvador,
+  El Salvador
 date: "July 23, 2017"
-abstract: "An example code is shown for analyzing a dataset mined from Google Drive data showing the file edit history from contributors."
+output:
+  pdf_document: default
+  html_document: default
 tags: Fab Lab, sharing economies, data analysis
-
-output: html_document
+abstract: An example code is shown for analyzing a dataset mined from Google Drive
+  data showing the file edit history from contributors.
 ---
 
 ```{r setup, include=FALSE}
